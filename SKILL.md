@@ -9,17 +9,20 @@ description: 东软智慧教育平台（neustudydl.neumooc.com）自动化操作
 
 ## 前置准备
 
-本 skill 依赖 web-access skill 的 CDP 基础设施。操作前必须：
+本 skill 依赖 [web-access](https://github.com/eze-is/web-access) skill 的 CDP 基础设施。操作前必须：
 
 ```bash
-node "C:/Users/28694/.claude/skills/web-access/scripts/check-deps.mjs"
+node "{SKILL_DIR}/scripts/check-deps.mjs"
 ```
+
+> `{SKILL_DIR}` 为本 skill 的安装目录（系统自动注入，通常为 `~/.agents/skills/neusoft-edu`）。  
+> 脚本会自动定位 web-access，若未安装会给出安装提示。
 
 确认 Node.js 22+ 和 Chrome 远程调试已就绪，CDP Proxy 已连接（端口 3456）。
 
 **平台详细参考**：读取 `references/platform.md` 获取已验证的 DOM 选择器和 JS 代码片段。
 
-**用户前提**：用户已在 Chrome 中打开课程详情页（URL 形如 `neustudydl.neumoc.com/...`）。
+**用户前提**：用户已在 Chrome 中打开课程详情页（URL 形如 `neustudydl.neumooc.com/...`）。
 
 ---
 

@@ -1,0 +1,16 @@
+{
+  "name": "neusoft-edu",
+  "description": "东软智慧教育平台自动化：自动答题（作业/测验）+ 自动刷学习资料",
+  "version": "1.0.0",
+  "author": {
+    "name": "ryoo2001"
+  },
+  "homepage": "https://github.com/ryoo2001/neumooc",
+  "repository": "https://github.com/ryoo2001/neumooc",
+  "license": "MIT",
+  "keywords": ["neumooc", "neusoft", "education", "automation", "quiz"],
+  "skills": ["./"],
+  "dependencies": {
+    "web-access": "https://github.com/eze-is/web-access"
+  }
+}
