@@ -19,7 +19,7 @@ updated: 2026-05-15
 - **学习资料**在 `学习资料` tab 下，资料条目选择器为 `.resItem`，文件名选择器为 `.file-name__span`
 - 学习资料的"去学习"按钮为 `.el-button--primary.el-button--small`，点击后**新开 tab**（URL: `/resourcesLearning/index/...`）
 - 文档类资料（.docx/.pdf）：在资料页停留约 30 秒，系统自动标记已完成，无需任何操作（2026-05-15 验证）
-- 视频类资料（.mp4）：完成机制未验证，暂跳过
+- 视频类资料（.mp4）：HLS 流播放，快进到末尾触发 `ended` 事件后平台自动调用 `studyForAudioOrVideo` API 标记完成。视频播放器为自定义 `d-player`，`<video>` 元素 id 为 `dPlayerVideoMain`。直接设置 `video.currentTime` 不受 UI 进度条限制（2026-05-22 验证）
 
 ## 有效模式（2026-05-14 验证）
 
@@ -121,6 +121,21 @@ document.querySelectorAll(".el-button--primary.el-button--small")[N].click();
 // 然后关闭该 tab，继续下一个
 ```
 
+### 学习资料批量刷完（视频类）
+
+```js
+// 1. 点击"去学习"打开视频 tab（同文档类）
+// 2. 等待 10-15s 视频加载后快进到末尾
+const video = document.querySelector("video");
+video.currentTime = video.duration - 3;
+// 3. 等待 5-8s 视频自然结束，检查完成弹窗
+const msgBox = document.querySelector(".el-message-box");
+// msgBox 存在说明已完成
+// 4. 关闭弹窗
+msgBox.querySelectorAll("button")[0].click();
+// 5. 关闭 tab，继续下一个
+```
+
 ## 已知陷阱
 
 - `textContent.trim() === "确定"` 在 /eval 中因编码问题可能匹配失败，改用 `.el-message-box button` 的索引 `[2]`（2026-05-15）
@@ -130,6 +145,8 @@ document.querySelectorAll(".el-button--primary.el-button--small")[N].click();
 - 作业/测验名称列表不含序号前缀，每提交一个后按钮顺序会变，用文本匹配比索引更稳定
 - 作业和测验操作方式完全一致，切换 tab 后操作流程相同（2026-05-15）
 - 学习资料状态文字前有 ` `，必须用 charCode 过滤后比较，不能用字符串直接匹配（2026-05-15）
-- 视频类资料（.mp4）完成机制未验证，暂跳过（2026-05-15）
+- 视频类资料（.mp4）：HLS 流加载需 10-15 秒，必须等 `video.duration` 有值后再快进。快进后需等 5-8 秒让视频自然播放到末尾触发 `ended`。完成后弹窗按钮用 `[0]` 索引关闭（2026-05-22 验证）
+- 视频完成后列表状态先变"学习中"，稍后自动更新为"已完成"，属正常延迟（2026-05-22）
+- 部分视频源可能损坏或 CDN 不可达，表现为 `video.duration` 始终为 NaN/null、`readyState` 卡在 0。必须设超时（重试 5 次，间隔 10 秒，共约 60 秒），超时后关闭 tab 跳过，不要阻塞后续视频（2026-05-22）
 - 测验/作业列表可能有多条，已完成项按钮为"详情"，已作答项按钮也可能变为"详情"。存在"已作答"中间状态，此类测验无需重复做，直接跳过。每次进入列表应重新扫描"去作答"按钮，因为提交后按钮顺序会变（2026-05-22）
 

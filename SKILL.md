@@ -12,10 +12,10 @@ description: 东软智慧教育平台（neustudydl.neumooc.com）自动化操作
 本 skill 依赖 [web-access](https://github.com/eze-is/web-access) skill 的 CDP 基础设施。操作前必须：
 
 ```bash
-node "{SKILL_DIR}/scripts/check-deps.mjs"
+node "${CLAUDE_SKILL_DIR}/scripts/check-deps.mjs"
 ```
 
-> `{SKILL_DIR}` 为本 skill 的安装目录（系统自动注入，通常为 `~/.agents/skills/neusoft-edu`）。  
+> `${CLAUDE_SKILL_DIR}` 由 Claude Code 在 skill 执行时自动注入，指向本 skill 的安装目录。  
 > 脚本会自动定位 web-access，若未安装会给出安装提示。
 
 确认 Node.js 22+ 和 Chrome 远程调试已就绪，CDP Proxy 已连接（端口 3456）。
@@ -234,7 +234,69 @@ curl -s -X POST "http://localhost:3456/eval?target=TAB_ID" -d '
 })()'
 ```
 
-> **注意**：视频类资料（.mp4）的完成机制尚未验证，暂不处理，跳过即可。
+---
+
+## 三、自动刷学习资料（视频类）
+
+视频资料（.mp4）的完成机制：打开视频页面 → 等视频加载并开始播放 → 快进到末尾 → 视频自然结束触发 `ended` 事件 → 平台自动调用 `studyForAudioOrVideo` API（playStatus=3）标记完成 → 弹出"你已完成该视频学习"提示。
+
+### 3.1 打开视频资料
+
+同 2.3，点击"去学习"按钮新开 tab：
+
+```bash
+curl -s -X POST "http://localhost:3456/eval?target=TAB_ID" -d '
+document.querySelectorAll(".el-button--primary.el-button--small")[INDEX].click()'
+```
+
+### 3.2 等待视频加载并快进到末尾
+
+视频使用 HLS 流（.m3u8），加载需要时间。必须等 `video.duration` 有值后再快进：
+
+```bash
+# 等待约 10-15 秒后执行（HLS 加载较慢）
+curl -s -X POST "http://localhost:3456/eval?target=VIDEO_TAB_ID" -d '
+(function() {
+  const video = document.querySelector("video");
+  if (!video || !video.duration) return { ready: false, readyState: video?.readyState };
+  video.currentTime = video.duration - 3;
+  return { ready: true, duration: video.duration };
+})()'
+```
+
+若返回 `ready: false`，等待 10 秒后重试，**最多重试 5 次（共约 60 秒）**。若始终无法加载（视频源损坏），直接关闭该 tab 跳过，继续下一个视频。
+
+### 3.3 等待视频结束并确认完成
+
+快进后等约 5-8 秒，视频自然播放到末尾触发 `ended` 事件，平台会弹出完成提示。**若等待超过 30 秒仍未出现完成弹窗，视为异常，关闭 tab 跳过。**
+
+```bash
+curl -s -X POST "http://localhost:3456/eval?target=VIDEO_TAB_ID" -d '
+(function() {
+  const video = document.querySelector("video");
+  const msgBox = document.querySelector(".el-message-box");
+  return { ended: video?.ended, hasMsgBox: !!msgBox };
+})()'
+```
+
+确认 `ended: true` 且 `hasMsgBox: true` 后，点击关闭按钮：
+
+```bash
+curl -s -X POST "http://localhost:3456/eval?target=VIDEO_TAB_ID" -d '
+document.querySelector(".el-message-box").querySelectorAll("button")[0].click()'
+```
+
+### 3.4 关闭视频 tab 并继续下一个
+
+```bash
+curl -s "http://localhost:3456/close?target=VIDEO_TAB_ID"
+```
+
+回到课程页继续点击下一个未完成的视频资料。
+
+### 3.5 视频完成的状态更新
+
+视频完成后在课程页列表中状态会先变为"学习中"，稍后（通常几秒到一分钟）自动更新为"已完成"。这是正常的延迟，不影响实际完成状态。
 
 ---
 
@@ -244,7 +306,8 @@ curl -s -X POST "http://localhost:3456/eval?target=TAB_ID" -d '
 - 学习资料在 **`学习资料` tab**，不是"导学"
 - 点击"去学习"会新开 tab，URL 格式：`/resourcesLearning/index/...`
 - 文档类资料（.docx/.pdf）：停留约 30 秒自动标记已完成，无需任何操作
-- 视频类资料（.mp4）：完成机制未验证，暂跳过
+- 视频类资料（.mp4）：打开页面后快进到末尾（`video.currentTime = duration - 3`），等 `ended` 事件触发完成逻辑，每个视频约需 20-30 秒（含加载时间）
+- 视频源可能损坏（加载超时）：等待 `video.duration` 最多重试 5 次（间隔 10 秒，共约 60 秒），仍无法加载则跳过该视频，不要卡住整个流程
 - 状态文字前有 ` `（非断行空格），不能用 `.trim()` 或 `includes()` 直接匹配，需过滤 charCode > 255 的字符后比较
 - `textContent.trim() === "确定"` 在 eval 中可能因编码问题匹配失败，改用按钮索引 `[2]` 更稳定
 - 多选题每个选项点击间隔必须 ≥ 200ms
