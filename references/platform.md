@@ -9,8 +9,8 @@ updated: 2026-05-15
 - 东软智慧教育平台（NEU），Element UI (Vue2) + 自定义样式，Vue3 组件
 - 课程详情页 URL 固定不变，tab 切换（导学/测验/作业/学习资料等）均为前端路由，URL 始终是同一个
 - 课程页 tab 使用自定义 `.tabItem` 类（非 `.el-tabs__item`），当前激活 tab 有 `.tabFocus` 类
-- **作业**和**测验**结构完全相同，操作方式一致，均在课程详情页对应 tab 下以列表形式展示，无需新开 tab
-- 每个作业/测验有"去作答"按钮（已截止或已完成则变为"详情"）
+- **作业**和**测验**结构完全相同，操作方式一致，均在课程详情页对应 tab 下以 `.card_item` 条目列表展示，无需新开 tab
+- 每个条目包含：名称、作答次数、截止状态（进行中/已截止）、**作答状态**（已作答/未作答/已完成）。作答状态是关键判断依据："已作答"或"已完成"的条目直接跳过，即使"去作答"按钮仍存在（部分测验允许多次作答）。只有"未作答"且可点击"去作答"的才需要进入答题（2026-05-22 更新）
 - 作答页面一次只显示一题，通过"上一题"/"下一题"按钮切换，右侧有"答题卡"
 - 所有题目均存在于 DOM 中（`.item-box`），可批量提取和作答，无需逐题翻页
 - 题目类型：单选题（`.el-radio`）、多选题（`.el-checkbox`）、判断题（`.el-radio`，A.正确/B.错误）
@@ -33,17 +33,31 @@ for (const t of tabs) {
 }
 ```
 
-### 打开作业/测验
+### 扫描可作答项（含状态过滤）
 
-列表页的"去作答"按钮按 DOM 顺序排列，用按钮文本匹配更可靠：
+每条作业/测验是 `.card_item` 条目，内含名称、次数、状态、"详情"/"去作答"按钮。**必须先检查状态**：已作答/已完成的跳过，只做未作答的。
 
 ```js
-const btns = document.querySelectorAll("button");
-const goIdxs = [];
-for (let i = 0; i < btns.length; i++) {
-  if (btns[i].textContent.trim() === "去作答") goIdxs.push(i);
+// 列出所有条目及其状态
+const cards = document.querySelectorAll(".card_item");
+const items = [];
+for (let i = 0; i < cards.length; i++) {
+  const text = cards[i].innerText;
+  const hasAnswered = text.includes("已作答") || text.includes("已完成");
+  const hasGoBtn = text.includes("去作答");
+  items.push({ index: i, name: text.split("\n")[0], hasAnswered, hasGoBtn });
 }
-btns[goIdxs[0]].click(); // 第一个可作答项
+// 只处理 !hasAnswered && hasGoBtn 的条目
+```
+
+### 打开作业/测验
+
+从上面过滤出的未作答条目中，取对应 `.card_item` 下的"去作答"按钮点击：
+
+```js
+const card = document.querySelectorAll(".card_item")[TARGET_INDEX];
+const btn = Array.from(card.querySelectorAll("button")).find(b => b.textContent.trim() === "去作答");
+if (btn) btn.click();
 ```
 
 ### 批量作答（单选/判断）
@@ -117,4 +131,5 @@ document.querySelectorAll(".el-button--primary.el-button--small")[N].click();
 - 作业和测验操作方式完全一致，切换 tab 后操作流程相同（2026-05-15）
 - 学习资料状态文字前有 ` `，必须用 charCode 过滤后比较，不能用字符串直接匹配（2026-05-15）
 - 视频类资料（.mp4）完成机制未验证，暂跳过（2026-05-15）
+- 测验/作业列表可能有多条，已完成项按钮为"详情"，已作答项按钮也可能变为"详情"。存在"已作答"中间状态，此类测验无需重复做，直接跳过。每次进入列表应重新扫描"去作答"按钮，因为提交后按钮顺序会变（2026-05-22）
 
