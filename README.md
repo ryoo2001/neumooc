@@ -32,13 +32,15 @@ git clone https://github.com/eze-is/web-access.git ~/.agents/skills/web-access
 git clone https://github.com/ryoo2001/neumooc.git ~/.agents/skills/neusoft-edu
 ```
 
-### 第三步：开启 Chrome 远程调试
+### 第三步：开启浏览器远程调试
 
-在 Chrome 地址栏打开：
+在浏览器（Chrome 或 Edge）地址栏打开：
 
 ```
 chrome://inspect/#remote-debugging
 ```
+
+（Edge 用户使用 `edge://inspect/#remote-debugging`）
 
 勾选 **"Allow remote debugging for this browser instance"**，可能需要重启浏览器。
 
@@ -72,8 +74,8 @@ skill 会自动：
 ## 前置条件
 
 - Node.js 22+（[下载](https://nodejs.org)）
-- Chrome 浏览器，已开启远程调试（见第三步）
-- 已在 Chrome 中打开课程详情页并登录
+- Chrome 或 Edge 浏览器，已开启远程调试（见第三步）
+- 已在浏览器中打开课程详情页并登录
 
 ---
 

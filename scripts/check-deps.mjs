@@ -8,15 +8,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const HOME = os.homedir();
+const __dirname = import.meta.dirname ?? path.dirname(fileURLToPath(import.meta.url));
 
 // 按优先级搜索 web-access skill 的位置
 const SEARCH_PATHS = [
   path.join(HOME, '.agents', 'skills', 'web-access'),
   path.join(HOME, '.claude', 'skills', 'web-access'),
-  // 兼容 Linux/macOS
   path.join(HOME, '.config', 'claude', 'skills', 'web-access'),
+  // 同级 skill 目录（适用于所有 skill 安装在同一父目录的情况）
+  path.join(__dirname, '..', '..', 'web-access'),
 ];
 
 function findWebAccess() {

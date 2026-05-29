@@ -33,7 +33,7 @@ for (const t of tabs) {
 }
 ```
 
-### 扫描可作答项（含状态过滤）
+### 扫描可作答项（含状态过滤）— SKILL.md 1.3 节的权威参考
 
 每条作业/测验是 `.card_item` 条目，内含名称、次数、状态、"详情"/"去作答"按钮。**必须先检查状态**：已作答/已完成的跳过，只做未作答的。
 
@@ -92,7 +92,8 @@ const btns = document.querySelectorAll("button");
 for (let i = 0; i < btns.length; i++) {
   if (btns[i].textContent.trim() === "提交") { btns[i].click(); break; }
 }
-// 2. 等待约 1.5s 后点击对话框"确定"（index 2）
+// 2. 等待约 1.5s 后点击对话框"确定"
+// 按钮索引：[0]=关闭X（右上角）, [1]=取消, [2]=确定
 const dlg = document.querySelector(".el-message-box");
 dlg.querySelectorAll("button")[2].click();
 ```
