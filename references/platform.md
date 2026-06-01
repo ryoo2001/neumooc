@@ -105,6 +105,7 @@ dlg.querySelectorAll("button")[2].click();
 ```js
 // 已完成 charCodes: [24050,23436,25104]
 // 未学习 charCodes: [26410,23398,20064]
+// 学习中 charCodes: [23398,20064,20013]
 function matchStatus(item, codes) {
   const spans = item.querySelectorAll("span");
   const t = spans[spans.length - 1]?.textContent || "";
@@ -112,6 +113,8 @@ function matchStatus(item, codes) {
   return chars.length === codes.length && chars.every((c, i) => c.charCodeAt(0) === codes[i]);
 }
 ```
+
+**断点续传关键**：每次处理资料前必须重新获取状态列表，严格过滤 `status: "todo"` 的条目。已完成（`"done"`）和学习中（`"learning"`）的条目必须跳过，否则会重复刷已完成的资料。
 
 ### 学习资料批量刷完（文档类）
 
@@ -150,4 +153,5 @@ msgBox.querySelectorAll("button")[0].click();
 - 视频完成后列表状态先变"学习中"，稍后自动更新为"已完成"，属正常延迟（2026-05-22）
 - 部分视频源可能损坏或 CDN 不可达，表现为 `video.duration` 始终为 NaN/null、`readyState` 卡在 0。必须设超时（重试 5 次，间隔 10 秒，共约 60 秒），超时后关闭 tab 跳过，不要阻塞后续视频（2026-05-22）
 - 测验/作业列表可能有多条，已完成项按钮为"详情"，已作答项按钮也可能变为"详情"。存在"已作答"中间状态，此类测验无需重复做，直接跳过。每次进入列表应重新扫描"去作答"按钮，因为提交后按钮顺序会变（2026-05-22）
+- **断点续传陷阱**：刷资料时若中断，重新开始必须先执行状态检测（2.2 节），严格过滤 `status: "todo"` 的条目。小模型容易忽略状态过滤，导致重复刷已完成的资料。每处理完一个资料后必须重新获取状态列表，不能缓存旧列表（2026-06-01）
 

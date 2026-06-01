@@ -269,12 +269,14 @@ curl -s --max-time 15 -X POST "http://localhost:3456/eval?target=TAB_ID" -d '
 (function() {
   const YI_WAN_CHENG = [24050,23436,25104];
   const WEI_XUE_XI = [26410,23398,20064];
+  const XUE_XI_ZHONG = [23398,20064,20013];
   function getStatus(item) {
     const spans = item.querySelectorAll("span");
     const t = spans[spans.length-1]?.textContent || "";
     const chars = Array.from(t).filter(c => c.charCodeAt(0) > 255);
     if (chars.length === 3 && chars.every((c,i) => c.charCodeAt(0) === YI_WAN_CHENG[i])) return "done";
     if (chars.length === 3 && chars.every((c,i) => c.charCodeAt(0) === WEI_XUE_XI[i])) return "todo";
+    if (chars.length === 3 && chars.every((c,i) => c.charCodeAt(0) === XUE_XI_ZHONG[i])) return "learning";
     return "unknown";
   }
   const items = document.querySelectorAll(".resItem");
@@ -297,7 +299,7 @@ document.querySelectorAll(".el-button--primary.el-button--small")[INDEX].click()
 ```
 
 操作流程：
-1. 从 2.2 结果中筛选 `status: "todo"` 的条目
+1. **从 2.2 结果中严格筛选 `status: "todo"` 的条目**，排除 `"done"` / `"learning"` / `"unknown"`
 2. 取前 3 个（或剩余全部），依次点击"去学习"，每次间隔 1s
 3. 每次点击后等 3s，curl targets 获取新开 tab 的 targetId
 4. 全部打开后 sleep 35s（文档停留 30s 即标记完成，多留 5s 余量）
@@ -305,7 +307,10 @@ document.querySelectorAll(".el-button--primary.el-button--small")[INDEX].click()
 ```bash
 curl -s --max-time 10 "http://localhost:3456/close?target=RESOURCE_TAB_ID"
 ```
-6. 重复直到所有文档完成
+6. **关闭 tab 后必须重新执行 2.2 获取最新状态列表**，因为平台可能延迟更新状态
+7. 重复步骤 1-6 直到所有文档完成（`status: "todo"` 列表为空）
+
+**断点续传关键**：每轮开始前都重新执行 2.2 获取状态，只处理 `status: "todo"` 的条目。已完成（`"done"`）和学习中（`"learning"`）的条目必须跳过。
 
 ### 2.4 检查完成进度
 
@@ -317,9 +322,13 @@ curl -s --max-time 10 "http://localhost:3456/close?target=RESOURCE_TAB_ID"
 
 视频完成机制：打开视频页 → 等 HLS 加载 → 快进到末尾 → `ended` 事件触发 → 平台 API 标记完成 → 弹出完成提示。
 
+**断点续传关键**：每处理一个视频前，必须重新执行 2.2 获取最新状态列表，只处理 `status: "todo"` 的视频。已完成（`"done"`）和学习中（`"learning"`）的视频必须跳过。
+
 ### 3.1 打开视频资料
 
 同 2.3，点击"去学习"按钮新开 tab。视频必须逐个处理（不能并行，因为需要等待 ended 事件）。
+
+**操作前必须先执行 2.2 获取状态列表，筛选 `status: "todo"` 的视频**：
 
 ```bash
 curl -s --max-time 15 -X POST "http://localhost:3456/eval?target=TAB_ID" -d '
@@ -378,7 +387,9 @@ curl -s --max-time 30 -X POST "http://localhost:3456/eval?target=VIDEO_TAB_ID" -
 curl -s --max-time 10 "http://localhost:3456/close?target=VIDEO_TAB_ID"
 ```
 
-回到课程页继续下一个未完成的视频。视频完成后列表状态可能先显示"学习中"，稍后自动更新为"已完成"，属正常延迟。
+**关闭 tab 后必须重新执行 2.2 获取最新状态列表**，然后继续下一个 `status: "todo"` 的视频。视频完成后列表状态可能先显示"学习中"，稍后自动更新为"已完成"，属正常延迟。
+
+**循环终止条件**：当 2.2 返回的列表中不再有 `status: "todo"` 的条目时，说明所有资料已完成。
 
 ---
 
@@ -392,3 +403,4 @@ curl -s --max-time 10 "http://localhost:3456/close?target=VIDEO_TAB_ID"
 - 提交后需等待约 1.5s 再点击确认对话框
 - 每完成一个作业/测验后重新扫描列表（按钮顺序会变）
 - 状态文字前有 ` `，不能用 `.includes()` 直接匹配，需用 charCode 过滤
+- **断点续传关键**：刷资料时每轮开始前必须重新执行 2.2 获取状态列表，严格过滤 `status: "todo"` 的条目。小模型容易忽略状态过滤或缓存旧列表，导致重复刷已完成的资料
